@@ -1,0 +1,17 @@
+#Instalar plugin vagrant share en el anfitrion
+vagrant plugin install vagrant-share
+
+# configurar ngrok en servidor
+# instalar wget
+yum install wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+# instalar unzip
+yum install unzip
+# Descomprimir arhivo zip ngrok
+unzip https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+# verificar rutas $PATH
+echo $PATH
+# mover o copiar el archivo ngrok a una de las rutas del $PATH
+cp ngrok /usr/local/sbin/
+
+#Ejecutrar vagrant share desde anfitrion
+vagrant share servidor --http 5080

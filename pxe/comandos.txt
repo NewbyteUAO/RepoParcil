@@ -1,0 +1,83 @@
+sntalar servicios 
+# yum -y install httpd xinetd syslinux tftp-server dhcp wget vim
+
+#Descarga ISO CentOS
+wget http://mirror.cedia.org.ec/centos/7.9.2009/isos/x86_64/CentOS-7-x86_64-DVD-2009.iso
+
+#Configurar el servidor DHCP para PXE
+vim /etc/dhcp/dhcpd.conf
+
+#Archivo de configuracion
+	subnet 192.168.50.0 netmask 255.255.255.0 {
+	range 192.168.50.100 192.168.50.200;
+	option domain-name-servers 192.168.50.4, 8.8.8.8;
+	option domain-name "nb.com";
+	option routers 192.168.50.4;
+	option broadcast-address 192.168.4.255;
+	default-lease-time 600;
+	max-lease-time 7200;
+
+	#IP of PXE Server
+	next-server 192.168.50.4;
+	filename "pxelinux.0";
+	}
+
+#Editar y configurar el servidor tftp
+vim /etc/xinetd.d/tftp
+
+# cambia en parametro de la variable "disable" a "no"
+	service tftp
+	{
+	 socket_type = dgram
+	 protocol    = udp
+	 wait        = yes
+	 user        = root
+	 server      = /usr/sbin/in.tftpd
+	 server_args = -s /var/lib/tftpboot
+	 disable     = no
+	 per_source  = 11
+	 cps         = 100 2
+	 flags       = IPv4
+	}
+	
+# Se copian los archivos de arranque de red al directorio "/var/lib/tftpboot"
+cp -v /usr/share/syslinux/pxelinux.0 /var/lib/tftpboot
+cp -v /usr/share/syslinux/menu.c32 /var/lib/tftpboot
+cp -v /usr/share/syslinux/memdisk /var/lib/tftpboot
+cp -v /usr/share/syslinux/mboot.c32 /var/lib/tftpboot
+cp -v /usr/share/syslinux/chain.c32 /var/lib/tftpboot
+
+# Se crean 2 nuevos directorios de configuracion 
+mkdir /var/lib/tftpboot/pxelinux.cfg
+mkdir /var/lib/tftpboot/networkboot
+
+# Se monta la imagen ISO
+mount -o loop CentOS-7-x86_64-DVD-2009.iso /mnt/
+mount: /dev/loop0 is write-protected, mounting read-only
+
+# Copiamos el contenido del iso al ftp
+cd /mnt/
+[root@pxe mnt]# cp -av * /var/ftp/pub/
+
+# Desmontamos la imagen ISO
+unmount /mnt/
+
+#achivo de menú PXE 
+	vim /var/lib/tftpboot/pxelinux.cfg/default
+
+	default menu.c32
+	prompt 0
+	timeout 30
+	MENU TITLE LinuxTechi.com PXE Menu
+	LABEL centos7_x64
+	MENU LABEL CentOS 7_X64
+	KERNEL /networkboot/vmlinuz
+	APPEND initrd=/networkboot/initrd.img inst.repo=ftp://172.168.50.4/pub ks=ftp://172.168.50.4/pub/centos7.cfg
+
+# Iniciar y habilitar los servicios xinetd, dhcp y vsftpd
+systemctl start xinetd
+systemctl enable xinetd
+systemctl start dhcpd.service
+systemctl enable dhcpd.service
+systemctl start vsftpd
+systemctl enable vsftpd
